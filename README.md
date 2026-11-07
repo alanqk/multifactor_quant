@@ -34,8 +34,11 @@ multifactor_quant/
     backtest/                  # 向量化月度引擎
   scripts/download_sharadar_sample.py
   scripts/run_backtest.py
+  scripts/export_dashboard_data.py
   data/raw/                    # 已入库：SEP.csv SF1.csv TICKERS.csv
   reports/
+  web/                         # GitHub Pages 静态看板（index.html）
+  .github/workflows/pages.yml
 ```
 
 ## 因子定义
@@ -80,10 +83,38 @@ multifactor_quant/
 
 ## 看板源码
 
-- `dashboard/multifactor_dashboard.canvas.tsx` — Cursor / Grok Bot Page 源码（`grok/canvas`）
-- `dashboard/dash_data.json` — 看板嵌入数据快照
+- `dashboard/multifactor_dashboard.canvas.tsx` — Cursor / Grok Bot Page 源码（`grok/canvas`，不在浏览器里运行）
+- `dashboard/dash_data.json` — 看板数据快照（绩效、净值、持仓、因子排序）
 - `reports/` — 最近一次样本回测摘要（`summary.md`、`stats.json`、`equity_curve.csv`）
 
 免费 DJIA-30 样本已入库于 `data/raw/`。刷新数据用 `python scripts/download_sharadar_sample.py`，然后 `python scripts/run_backtest.py`。
+
+## Web 看板 (GitHub Pages)
+
+静态站点在 `web/`，入口是 `web/index.html`。页面用相对路径读取 `web/data/dash_data.json`，因此在项目 Pages 子路径 `/multifactor_quant/` 下也能打开。部署后的地址：
+
+https://alanqk.github.io/multifactor_quant/
+
+合并到 `main` 后，`.github/workflows/pages.yml` 会在 push（以及手动 `workflow_dispatch`）时把 `web/` 发布到 GitHub Pages。若站点还没打开过，需要在仓库里启用一次：
+
+**Settings → Pages → Build and deployment → Source = GitHub Actions**
+
+然后打开上面的 URL。
+
+本地预览不需要构建，在仓库根目录执行：
+
+```bash
+python -m http.server -d web 8080
+```
+
+浏览器访问 http://127.0.0.1:8080/ 。直接用 `file://` 打开时，浏览器会拦截对 JSON 的读取。
+
+更新看板数字：`reports/` 只有摘要和日频净值，没有持仓和因子排序，不能单独重建整份 JSON。刷新 `dashboard/dash_data.json` 之后运行：
+
+```bash
+python scripts/export_dashboard_data.py
+```
+
+脚本会校验字段并把快照复制到 `web/data/dash_data.json`。
 
 仓库：[alanqk/multifactor_quant](https://github.com/alanqk/multifactor_quant)

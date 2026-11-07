@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>多因子回测看板 · DJIA-30</title>
+    <meta
+      name="description"
+      content="DJIA-30 多因子样本回测的静态看板：净值曲线、绩效、月度持仓与因子排序。"
+    />
+    <meta name="theme-color" content="#1c1915" />
+    <!-- Project Pages lives at /multifactor_quant/; keep these URLs relative to this file. -->
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=Source+Serif+4:opsz,wght@8..60,560;8..60,640&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="top">
+      <div class="brand">
+        <span class="mark" aria-hidden="true"></span>
+        <div>
+          <p class="kicker" id="kicker">Multifactor</p>
+          <h1>多因子回测看板</h1>
+        </div>
+      </div>
+      <p class="asof" id="asof"></p>
+    </header>
+
+    <p id="status" class="status" role="status">正在读取回测数据…</p>
+
+    <main id="app" hidden>
+      <p class="lede" id="lede"></p>
+      <p class="note" id="note"></p>
+
+      <section aria-labelledby="metrics-heading">
+        <h2 id="metrics-heading" class="sr">整体指标</h2>
+        <div class="metrics" id="metrics"></div>
+        <dl class="props" id="props"></dl>
+      </section>
+
+      <section class="card" aria-labelledby="equity-heading">
+        <div class="card-head">
+          <h2 id="equity-heading">净值曲线</h2>
+          <p class="end-multiples" id="end-multiples"></p>
+        </div>
+        <p class="hint">纵轴为期初归一净值。策略为实线，等权宇宙基准为虚线。</p>
+        <p id="chart-fallback" class="hint warn" hidden>
+          图表库未能加载。下方表格仍使用同一份数据。
+        </p>
+        <div class="chart-box chart-box-lg">
+          <canvas id="equity-chart" aria-label="策略与等权基准的归一净值曲线"></canvas>
+        </div>
+      </section>
+
+      <section class="card" aria-labelledby="month-heading">
+        <div class="card-head">
+          <h2 id="month-heading">月末持仓与当月指标</h2>
+          <label class="month-pick">
+            调仓日
+            <select id="month"></select>
+          </label>
+        </div>
+        <div class="month-stats" id="month-stats"></div>
+        <h3 class="subhead">近期月收益</h3>
+        <p class="hint">点击柱形可切换调仓日。数值为月收益率（%）。</p>
+        <div class="chart-box chart-box-sm">
+          <canvas id="month-chart" aria-label="近期策略与基准月收益"></canvas>
+        </div>
+        <h3 class="subhead">收益热力</h3>
+        <p class="hint">颜色为策略月收益（%）。点击某月查看持仓。</p>
+        <div id="heatmap" class="heatmap"></div>
+      </section>
+
+      <div class="split">
+        <section class="card" aria-labelledby="hold-heading">
+          <div class="card-head">
+            <h2 id="hold-heading">当月持仓</h2>
+            <p class="hint" id="hold-count"></p>
+          </div>
+          <div class="table-scroll">
+            <table id="holdings">
+              <thead>
+                <tr>
+                  <th scope="col">代码</th>
+                  <th scope="col" class="num">权重</th>
+                  <th scope="col" class="num">合成分</th>
+                  <th scope="col" class="num">价格</th>
+                  <th scope="col">行业</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <h3 class="subhead">个股</h3>
+          <dl class="detail" id="detail"></dl>
+        </section>
+
+        <section class="card" aria-labelledby="rank-heading">
+          <div class="card-head">
+            <h2 id="rank-heading">因子股票池排序</h2>
+          </div>
+          <div class="tabs" id="factor-tabs" role="tablist" aria-label="因子"></div>
+          <div class="table-scroll table-tall">
+            <table id="ranks">
+              <thead>
+                <tr>
+                  <th scope="col" class="num">排名</th>
+                  <th scope="col">代码</th>
+                  <th scope="col" class="num">分数</th>
+                  <th scope="col">持仓</th>
+                  <th scope="col">行业</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <footer class="foot">
+      <p>
+        研究回测展示，不是投资建议，也不会在浏览器里重跑 Python。数据文件
+        <code>data/dash_data.json</code>
+        与仓库 <code>dashboard/dash_data.json</code> 为同一份快照。
+      </p>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
