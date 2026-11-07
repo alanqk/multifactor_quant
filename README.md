@@ -9,8 +9,9 @@ git clone https://github.com/alanqk/multifactor_quant.git
 cd multifactor_quant
 python -m venv .venv && source .venv/bin/activate
 pip install -e .
-python scripts/download_sharadar_sample.py   # 拉取 SEP/SF1/TICKERS
+# data/raw/ 已含免费 DJIA-30 样本 SEP.csv / SF1.csv / TICKERS.csv，可直接回测
 python scripts/run_backtest.py               # 因子 + 回测 + reports/
+# 需要刷新样本时再运行：python scripts/download_sharadar_sample.py
 ```
 
 报告输出：
@@ -33,7 +34,7 @@ multifactor_quant/
     backtest/                  # 向量化月度引擎
   scripts/download_sharadar_sample.py
   scripts/run_backtest.py
-  data/raw/                    # SEP.csv SF1.csv TICKERS.csv
+  data/raw/                    # 已入库：SEP.csv SF1.csv TICKERS.csv
   reports/
 ```
 
@@ -60,6 +61,7 @@ multifactor_quant/
 
 ## 数据说明
 
+- 免费 DJIA-30 样本 CSV 已放在 `data/raw/`（`SEP.csv`、`SF1.csv`、`TICKERS.csv`），克隆后可直接回测。需要刷新时运行 `python scripts/download_sharadar_sample.py`。
 - 免费密钥 `test-api-key` **不能** bulk `years=5`（401），脚本改为按 DJIA 30 逐票 REST 拉取。
 - 覆盖约最近 5 年；**无退市股**（样本本身是现任 DJIA 成分），存在幸存者偏差。
 - 价值/质量使用 ART（as-reported TTM）+ `date` 字段 asof，避免用 `calendardate` 造成前视。
@@ -82,6 +84,6 @@ multifactor_quant/
 - `dashboard/dash_data.json` — 看板嵌入数据快照
 - `reports/` — 最近一次样本回测摘要（`summary.md`、`stats.json`、`equity_curve.csv`）
 
-样本行情不入库：运行 `python scripts/download_sharadar_sample.py` 拉取后，再 `python scripts/run_backtest.py`。
+免费 DJIA-30 样本已入库于 `data/raw/`。刷新数据用 `python scripts/download_sharadar_sample.py`，然后 `python scripts/run_backtest.py`。
 
 仓库：[alanqk/multifactor_quant](https://github.com/alanqk/multifactor_quant)
