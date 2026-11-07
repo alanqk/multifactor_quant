@@ -19,6 +19,7 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from mf.backtest.engine import run_backtest  # noqa: E402
 from mf.dashboard_data import build_dashboard_payload, write_snapshots  # noqa: E402
+from mf.regime import attach_market_regime  # noqa: E402
 from mf.data.loader import load_sharadar  # noqa: E402
 from mf.factors.combine import combine_factors  # noqa: E402
 from mf.factors.low_vol import low_vol_factor  # noqa: E402
@@ -214,6 +215,7 @@ def main() -> None:
         max_name_weight=pcfg["max_name_weight"],
         drawdown_halt=rcfg.get("drawdown_halt"),
     )
+    attach_market_regime(payload, ROOT / "data" / "raw" / "SEP.csv", ROOT / "data" / "market" / "VIX.csv")
     written = write_snapshots(payload, ROOT)
     for path in written:
         print(f"Wrote {path.relative_to(ROOT)}")

@@ -40,6 +40,41 @@
       <p class="lede" id="lede"></p>
       <p class="note" id="note"></p>
 
+      <section class="card" aria-labelledby="regime-heading">
+        <div class="card-head">
+          <h2 id="regime-heading">市场风险档位</h2>
+          <p class="hint" id="regime-asof"></p>
+        </div>
+        <div class="regime-hero">
+          <p class="regime-level" id="regime-level">—</p>
+          <div>
+            <p class="regime-name" id="regime-name">—</p>
+            <p class="hint" id="regime-cap"></p>
+          </div>
+        </div>
+        <p class="hint" id="regime-note"></p>
+        <p class="hint warn" id="regime-flag" hidden></p>
+        <div class="table-scroll">
+          <table id="regime-drivers">
+            <thead>
+              <tr>
+                <th scope="col">因子</th>
+                <th scope="col">读数</th>
+                <th scope="col" class="num">风险分</th>
+                <th scope="col" class="num">权重</th>
+                <th scope="col" class="num">贡献</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <h3 class="subhead">档位轨迹</h3>
+        <p class="hint">阶梯为确认后的 L1–L6。升档要连续两个交易日，单日尖峰不会直接改档。</p>
+        <div class="chart-box chart-box-sm">
+          <canvas id="regime-chart" aria-label="市场风险档位轨迹"></canvas>
+        </div>
+      </section>
+
       <section aria-labelledby="metrics-heading">
         <h2 id="metrics-heading" class="sr">整体指标</h2>
         <div class="metrics" id="metrics"></div>

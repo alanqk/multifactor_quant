@@ -297,6 +297,35 @@ select {
 
 #concentration { grid-template-columns: repeat(4, 1fr); }
 
+.regime-hero {
+  display: flex;
+  align-items: flex-end;
+  gap: 18px;
+  margin: 4px 0 8px;
+}
+
+.regime-level {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 64px;
+  line-height: 0.85;
+  letter-spacing: -0.03em;
+}
+
+.regime-name {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 28px;
+  line-height: 1.1;
+}
+
+.regime-l1,
+.regime-l2 { color: var(--pos); }
+.regime-l3 { color: var(--copper); }
+.regime-l4,
+.regime-l5,
+.regime-l6 { color: var(--neg); }
+
 .month-stats div {
   padding: 8px 10px;
   border-radius: 10px;

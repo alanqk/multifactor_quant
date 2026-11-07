@@ -31,6 +31,7 @@ from mf.dashboard_data import (  # noqa: E402
     validate_payload,
     write_snapshots,
 )
+from mf.regime import attach_market_regime  # noqa: E402
 
 SRC = ROOT / "dashboard" / "dash_data.json"
 TICKERS = ROOT / "data" / "raw" / "TICKERS.csv"
@@ -47,6 +48,7 @@ def main() -> None:
         max_name_weight=cfg["portfolio"]["max_name_weight"],
         drawdown_halt=cfg["risk"].get("drawdown_halt"),
     )
+    attach_market_regime(payload, ROOT / "data" / "raw" / "SEP.csv", ROOT / "data" / "market" / "VIX.csv")
     validate_payload(payload)
     enrich_tickers(payload, TICKERS)
     written = write_snapshots(payload, ROOT)

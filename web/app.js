@@ -26,6 +26,7 @@
   let equityChart = null;
   let monthChart = null;
   let drawdownChart = null;
+  let regimeChart = null;
   let chartToken = 0;
   let tvWidget = null;
   let tvLoader = null;
@@ -77,6 +78,7 @@
     $("#app").hidden = false;
 
     renderIntro();
+    renderRegime();
     renderMetrics();
     renderRisk();
     renderMonthSelect();
@@ -606,6 +608,7 @@
     Chart.defaults.borderColor = "rgba(28, 25, 21, 0.08)";
     renderEquityChart();
     renderDrawdownChart();
+    renderRegimeChart();
     renderMonthChart();
   }
 
@@ -817,7 +820,108 @@
       tickers: raw.tickers || {},
       risk: raw.risk || null,
       drawdown: (raw.drawdown || []).map(asDrawdown),
+      market_regime: raw.market_regime || null,
     };
+  }
+
+  function renderRegime() {
+    const regime = DATA.market_regime;
+    const levelNode = $("#regime-level");
+    const nameNode = $("#regime-name");
+    const capNode = $("#regime-cap");
+    const note = $("#regime-note");
+    const flag = $("#regime-flag");
+    const body = $("#regime-drivers tbody");
+    levelNode.className = "regime-level";
+    if (!regime) {
+      levelNode.textContent = "—";
+      nameNode.textContent = "没有市场档位";
+      capNode.textContent = "";
+      note.textContent = "快照里没有 market_regime。请重新导出看板数据。";
+      body.replaceChildren();
+      return;
+    }
+    levelNode.textContent = "L" + regime.level;
+    levelNode.classList.add("regime-l" + regime.level);
+    nameNode.textContent = regime.label || "";
+    nameNode.className = "regime-name regime-l" + regime.level;
+    $("#regime-asof").textContent = regime.as_of ? "截至 " + regime.as_of : "";
+    const cap = regime.exposure_cap;
+    capNode.textContent =
+      "建议暴露上限 " +
+      pct(cap, 0) +
+      " · 综合分 " +
+      num(regime.score, 2) +
+      " · " +
+      (regime.proxy || "");
+    note.textContent = regime.note || "";
+    const flags = regime.flags || {};
+    const bits = [];
+    if (flags.rsi_oversold) bits.push("RSI 处于超卖，只作为压力的一部分。");
+    if (flags.euphoria) bits.push("乖离偏高，记为轻度亢奋，权重低于压力因子。");
+    if (regime.vix_source && regime.vix_source !== "cboe") bits.push("未使用 VIX 文件，波动项是实现波动尖峰。");
+    flag.hidden = bits.length === 0;
+    flag.textContent = bits.join("");
+    body.replaceChildren();
+    for (const driver of regime.drivers || []) {
+      const tr = document.createElement("tr");
+      tr.append(
+        cell(driver.name),
+        cell(driver.value_label || "—"),
+        cell(num(driver.risk, 2), "num"),
+        cell(pct(driver.weight, 0), "num"),
+        cell(num(driver.contribution, 3), "num")
+      );
+      body.append(tr);
+    }
+  }
+
+  function renderRegimeChart() {
+    const canvas = $("#regime-chart");
+    const regime = DATA.market_regime;
+    if (!canvas || typeof Chart === "undefined" || !regime || !(regime.history || []).length) return;
+    if (regimeChart) regimeChart.destroy();
+    const rows = regime.history;
+    regimeChart = new Chart(canvas, {
+      type: "line",
+      data: {
+        labels: rows.map((row) => row.date),
+        datasets: [
+          {
+            label: "档位",
+            data: rows.map((row) => row.level),
+            borderColor: "#8a5a2a",
+            backgroundColor: "rgba(138, 90, 42, 0.12)",
+            fill: true,
+            stepped: true,
+            pointRadius: 0,
+            pointHitRadius: 8,
+            borderWidth: 2,
+          },
+        ],
+      },
+      options: chartOptions({
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label(ctx) {
+                const row = rows[ctx.dataIndex];
+                return "L" + ctx.parsed.y + "  分数 " + num(row && row.score, 2);
+              },
+            },
+          },
+        },
+        scales: {
+          x: { ticks: { maxTicksLimit: 8, maxRotation: 0 }, grid: { display: false } },
+          y: {
+            min: 1,
+            max: 6,
+            ticks: { stepSize: 1 },
+          },
+        },
+      }),
+    });
   }
 
   function asDrawdown(row) {
