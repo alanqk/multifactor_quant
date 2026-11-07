@@ -36,7 +36,7 @@ jobs:
           test -f web/styles.css
           test -f web/app.js
           test -s web/data/dash_data.json
-          python -c 'import json; from pathlib import Path; d=json.loads(Path("web/data/dash_data.json").read_text(encoding="utf-8")); need=["meta","stats","equity","months","holdings","factor_ranks","tickers","calendar","risk","drawdown"]; miss=[k for k in need if k not in d]; assert not miss, miss; assert d["equity"], "empty equity"'
+          python -c 'import json; from pathlib import Path; d=json.loads(Path("web/data/dash_data.json").read_text(encoding="utf-8")); need=["meta","stats","equity","months","holdings","factor_ranks","tickers","calendar","risk","drawdown","market_regime"]; miss=[k for k in need if k not in d]; assert not miss, miss; assert d["equity"], "empty equity"'
 
       - name: Setup Pages
         uses: actions/configure-pages@v5

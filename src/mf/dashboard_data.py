@@ -26,6 +26,7 @@ REQUIRED = (
     "calendar",
     "risk",
     "drawdown",
+    "market_regime",
 )
 
 FACTOR_KEYS = ("momentum", "low_vol", "value", "quality")

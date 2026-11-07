@@ -114,6 +114,8 @@ python -m http.server -d web 8080
 
 净值曲线下面有「组合风险」：最大回撤与当前回撤、年化波动和下行波动、Sharpe / Sortino / Calmar、日胜率与月胜率、盈亏比、赔率、平均换手，以及随调仓日变化的前 5 / 前 10 权重。单票超过 `max_name_weight` 时会标出。回撤曲线用日净值的滚动峰值，图上取月末。这些数字来自同一次样本回测，写在 `dash_data.json` 的 `risk` 和 `drawdown` 里。
 
+「市场风险档位」是全市场状态，不是个股打分。代理指数是样本里 30 只股票的等权 `closeadj`。VIX 用已入库的 `data/market/VIX.csv`（CBOE 日收盘，CI 不联网下载）；文件缺失时，这一项改用代理指数的 5 日 / 60 日实现波动比。权重写在 `src/mf/regime.py`：回撤 0.28、20 日波动分位 0.18、VIX 0.18、50/200 日趋势 0.14、RSI(14) 0.08、乖离度 0.08、样本广度 0.06。RSI 超卖才明显加压力，超买只算轻度谨慎，而且权重只有 0.08，单靠 RSI 或乖离度到不了 L5/L6。升档要连续 2 个交易日，降档还要分数退出 0.06。每档的 `exposure_cap`（L1=1.00，L2=0.90，L3=0.75，L4=0.55，L5=0.25，L6=0）留给以后缩放目标仓位，这次不改回测净值。刷新 VIX 文件用 `python scripts/download_vix.py`。
+
 ## 在网页上执行回测
 
 Pages 上的看板是静态页，浏览器不能跑 Python。页眉 **执行回测** 会说明这一点，并在新标签页打开工作流 [Run backtest](https://github.com/alanqk/multifactor_quant/actions/workflows/run-backtest.yml)（`.github/workflows/run-backtest.yml`）。在该页选择分支 `main`，再点 **Run workflow**。
