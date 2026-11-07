@@ -1,0 +1,51 @@
+# Publishes the static dashboard in web/ to GitHub Pages.
+name: Deploy GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare site
+        run: |
+          mkdir -p web/data
+          if [ ! -s web/data/dash_data.json ]; then
+            cp dashboard/dash_data.json web/data/dash_data.json
+          fi
+          test -f web/index.html
+          test -f web/styles.css
+          test -f web/app.js
+          test -s web/data/dash_data.json
+          python -c 'import json; from pathlib import Path; d=json.loads(Path("web/data/dash_data.json").read_text(encoding="utf-8")); need=["meta","stats","equity","months","holdings","factor_ranks","tickers","calendar"]; miss=[k for k in need if k not in d]; assert not miss, miss; assert d["equity"], "empty equity"'
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: web
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
