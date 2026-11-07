@@ -19,10 +19,34 @@
   let month = "";
   let factor = "combined";
   let ticker = "";
+  const WORKFLOW_URL =
+    "https://github.com/alanqk/multifactor_quant/actions/workflows/run-backtest.yml";
+  const TV_EXCHANGE = { NASDAQ: "NASDAQ", NYSE: "NYSE", NYSEARCA: "AMEX", AMEX: "AMEX", ARCA: "AMEX" };
+
   let equityChart = null;
   let monthChart = null;
+  let chartToken = 0;
+  let tvWidget = null;
+  let tvLoader = null;
+  let lastFocus = null;
 
-  document.addEventListener("DOMContentLoaded", init);
+  document.addEventListener("DOMContentLoaded", () => {
+    const workflow = $("#backtest-link");
+    if (workflow) workflow.href = WORKFLOW_URL;
+    $("#run-backtest").addEventListener("click", openBacktest);
+    document.addEventListener("click", (event) => {
+      const closer = event.target.closest("[data-close]");
+      if (!closer) return;
+      if (closer.dataset.close === "stock") closeStock();
+      if (closer.dataset.close === "backtest") closeBacktest();
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape") return;
+      if (!$("#backtest-dialog").hidden) closeBacktest();
+      else if (!$("#stock-dialog").hidden) closeStock();
+    });
+    init();
+  });
 
   async function init() {
     try {
@@ -76,19 +100,33 @@
 
   function setMonth(next) {
     if (!next || next === month) return;
+    const previous = ticker;
     month = next;
     const holds = DATA.holdings[month] || [];
     if (!holds.some((row) => row.t === ticker)) ticker = holds[0] ? holds[0].t : ticker;
     $("#month").value = month;
     renderMonth();
     paintMonthChart();
+    if (stockIsOpen() && ticker !== previous) mountChart(ticker);
   }
 
-  function setTicker(next) {
+  function setTicker(next, options) {
+    const open = !options || options.open !== false;
+    const changed = next !== ticker;
     ticker = next;
     renderHoldings();
-    renderDetail();
     renderRanks();
+    if (!ticker) return;
+    if (!open) {
+      if (stockIsOpen()) renderStockFacts();
+      return;
+    }
+    if (!stockIsOpen()) openStock();
+    else {
+      renderStockFacts();
+      if (changed) mountChart(ticker);
+      else $("#stock-close").focus();
+    }
   }
 
   function renderIntro() {
@@ -102,7 +140,7 @@
       labelize(meta.weighting) +
       "、多头 " +
       pct(meta.long_pct, 0) +
-      "。图表读取本目录 data/dash_data.json，不会在浏览器里重跑 Python。";
+      "。图表读取本目录 data/dash_data.json，不会在浏览器里重跑 Python。要更新数字，用页眉「执行回测」。";
     $("#note").textContent = meta.note ? "数据附注：" + meta.note : "";
     if (stats.end) document.title = "多因子回测看板 · " + stats.end;
   }
@@ -201,8 +239,8 @@
     renderMonthStats();
     renderHeatmap();
     renderHoldings();
-    renderDetail();
     renderRanks();
+    if (stockIsOpen()) renderStockFacts();
   }
 
   function currentMonthRow() {
@@ -284,7 +322,7 @@
       tr.dataset.ticker = row.t;
       if (row.t === ticker) tr.classList.add("is-selected");
       tr.append(
-        cell(row.t),
+        tickerCell(row.t),
         cell(pct(row.w), "num"),
         cell(num(row.c, 4), "num"),
         cell(num(row.p, 2), "num"),
@@ -302,20 +340,67 @@
     }
   }
 
-  function renderDetail() {
+  function stockIsOpen() {
+    return !$("#stock-dialog").hidden;
+  }
+
+  function syncScrollLock() {
+    const locked = !$("#stock-dialog").hidden || !$("#backtest-dialog").hidden;
+    document.body.classList.toggle("modal-open", locked);
+  }
+
+  function openBacktest() {
+    $("#backtest-dialog").hidden = false;
+    syncScrollLock();
+    $("#backtest-link").focus();
+  }
+
+  function closeBacktest() {
+    $("#backtest-dialog").hidden = true;
+    syncScrollLock();
+    $("#run-backtest").focus();
+  }
+
+  function openStock() {
+    if (!ticker) return;
+    lastFocus = document.activeElement;
+    renderStockFacts();
+    $("#stock-dialog").hidden = false;
+    syncScrollLock();
+    $("#stock-close").focus();
+    mountChart(ticker);
+  }
+
+  function closeStock() {
+    chartToken += 1;
+    $("#stock-dialog").hidden = true;
+    destroyChart();
+    syncScrollLock();
+    if (lastFocus && typeof lastFocus.focus === "function") lastFocus.focus();
+  }
+
+  function renderStockFacts() {
     const holds = DATA.holdings[month] || [];
     const hold = holds.find((row) => row.t === ticker);
+    const name = companyName(ticker);
+    const exch = exchangeOf(ticker);
+    $("#stock-title").textContent = ticker || "—";
+    const bits = [name, exch, sectorName(ticker, hold && hold.sec)].filter((bit) => bit && bit !== "—");
+    $("#stock-sub").textContent = bits.join(" · ");
     const px = hold ? hold.p : tickerPx(ticker);
     const items = [
       ["代码", ticker || "—"],
+      ["公司", name || "—"],
+      ["交易所", exch || "—"],
       ["行业", sectorName(ticker, hold && hold.sec)],
-      ["权重", hold ? pct(hold.w) : "—"],
-      ["价格", num(px, 2)],
-      ["合成分", num(hold ? hold.c : factorScore("combined", ticker), 4)],
-      ["动量", num(hold ? hold.m : factorScore("momentum", ticker), 4)],
-      ["低波动", num(hold ? hold.l : factorScore("low_vol", ticker), 4)],
-      ["价值", num(hold ? hold.v : factorScore("value", ticker), 4)],
-      ["质量", num(hold ? hold.q : factorScore("quality", ticker), 4)],
+      ["调仓日", month || "—"],
+      ["权重", hold ? pct(hold.w) : "未持仓"],
+      ["快照价格", num(px, 2)],
+      ["合成分", scoreAndRank("combined", hold, "c")],
+      ["动量", scoreAndRank("momentum", hold, "m")],
+      ["低波动", scoreAndRank("low_vol", hold, "l")],
+      ["价值", scoreAndRank("value", hold, "v")],
+      ["质量", scoreAndRank("quality", hold, "q")],
     ];
     const dl = $("#detail");
     dl.replaceChildren();
@@ -328,6 +413,142 @@
       wrap.append(dt, dd);
       dl.append(wrap);
     }
+  }
+
+  function scoreAndRank(name, hold, key) {
+    const fromHold = hold && hold[key] != null ? hold[key] : null;
+    const score = fromHold != null ? fromHold : factorScore(name, ticker);
+    const rank = factorRank(name, ticker);
+    const text = num(score, 4);
+    if (rank == null) return text;
+    const total = ((DATA.factor_ranks[name] && DATA.factor_ranks[name][month]) || []).length;
+    return total ? text + " · 第 " + rank + " / " + total : text + " · 第 " + rank;
+  }
+
+  function mountChart(symbol) {
+    const token = ++chartToken;
+    const sym = tvSymbol(symbol);
+    destroyChart();
+    const status = $("#tv-status");
+    status.textContent = "正在加载 TradingView 行情…";
+    loadTradingView()
+      .then(() => {
+        if (token !== chartToken) return;
+        if (!window.TradingView || typeof window.TradingView.widget !== "function") {
+          throw new Error("TradingView 组件不可用");
+        }
+        destroyChart();
+        const node = document.createElement("div");
+        node.id = "tv_widget_" + token;
+        node.className = "tv-mount";
+        $("#tv-chart").append(node);
+        tvWidget = new window.TradingView.widget({
+          autosize: true,
+          symbol: sym,
+          interval: "D",
+          timezone: "America/New_York",
+          theme: "light",
+          style: "1",
+          locale: "zh_CN",
+          toolbar_bg: "#fbf9f4",
+          enable_publishing: false,
+          allow_symbol_change: false,
+          hide_legend: false,
+          save_image: false,
+          withdateranges: true,
+          container_id: node.id,
+        });
+        status.textContent =
+          "图表由 TradingView 提供（" +
+          sym +
+          "）。上方价格与因子为 " +
+          (month || "所选调仓日") +
+          " 的回测快照，与图中实时行情不是同一时点。切换代码会重新加载图表。";
+        for (const delay of [700, 1800]) {
+          window.setTimeout(() => pruneChartFrames(token), delay);
+        }
+      })
+      .catch(() => {
+        if (token !== chartToken) return;
+        destroyChart();
+        status.replaceChildren();
+        status.append(document.createTextNode("TradingView 图表未能加载。可稍后重试，或在新标签页打开行情。"));
+        const link = document.createElement("a");
+        link.href = "https://www.tradingview.com/chart/?symbol=" + encodeURIComponent(sym);
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        link.textContent = "在 TradingView 打开 " + sym;
+        status.append(document.createTextNode(" "));
+        status.append(link);
+      });
+  }
+
+  function pruneChartFrames(token) {
+    if (token !== chartToken) return;
+    const frames = $("#tv-chart").querySelectorAll("iframe");
+    for (let i = 0; i < frames.length - 1; i += 1) frames[i].remove();
+  }
+
+  function destroyChart() {
+    if (tvWidget && typeof tvWidget.remove === "function") {
+      try {
+        tvWidget.remove();
+      } catch (err) {
+        /* widget already detached */
+      }
+    }
+    tvWidget = null;
+    const host = $("#tv-chart");
+    if (host) host.replaceChildren();
+  }
+
+  function loadTradingView() {
+    if (window.TradingView && typeof window.TradingView.widget === "function") {
+      return Promise.resolve();
+    }
+    if (tvLoader) return tvLoader;
+    tvLoader = new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = "https://s3.tradingview.com/tv.js";
+      script.async = true;
+      script.dataset.tvjs = "1";
+      script.onload = () => resolve();
+      script.onerror = () => {
+        tvLoader = null;
+        reject(new Error("TradingView 脚本未能加载"));
+      };
+      document.head.appendChild(script);
+    });
+    return tvLoader;
+  }
+
+  function tvSymbol(symbol) {
+    const exch = exchangeOf(symbol);
+    if (TV_EXCHANGE[exch]) return TV_EXCHANGE[exch] + ":" + symbol;
+    return symbol;
+  }
+
+  function companyName(symbol) {
+    const info = DATA.tickers && DATA.tickers[symbol];
+    if (!info || typeof info !== "object" || !info.name) return "";
+    return prettyName(String(info.name));
+  }
+
+  function exchangeOf(symbol) {
+    const info = DATA.tickers && DATA.tickers[symbol];
+    if (!info || typeof info !== "object" || !info.exch) return "";
+    return String(info.exch).toUpperCase();
+  }
+
+  function prettyName(name) {
+    if (!name || name !== name.toUpperCase()) return name;
+    return name.toLowerCase().replace(/(^|[^a-z0-9])([a-z])/g, (all, lead, ch) => lead + ch.toUpperCase());
+  }
+
+  function factorRank(name, symbol) {
+    const rows = (DATA.factor_ranks[name] && DATA.factor_ranks[name][month]) || [];
+    const found = rows.find((row) => row.t === symbol);
+    return found ? found.r : null;
   }
 
   function renderRanks() {
@@ -351,7 +572,7 @@
       }
       tr.append(
         cell(String(row.r), "num"),
-        cell(row.t),
+        tickerCell(row.t),
         cell(num(row.s, 4), "num"),
         held,
         cell(sectorName(row.t, row.sec))
@@ -481,7 +702,7 @@
           },
         },
         scales: {
-          x: { grid: { display: false }, ticks: { maxRotation: 0 } },
+          x: { grid: { display: false }, ticks: { maxRotation: 0, maxTicksLimit: 12 } },
           y: {
             ticks: {
               callback(value) {
@@ -543,6 +764,19 @@
     const info = DATA.tickers && DATA.tickers[symbol];
     if (info && typeof info === "object" && info.px != null) return info.px;
     return null;
+  }
+
+  function tickerCell(symbol) {
+    const td = document.createElement("td");
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "ticker-btn";
+    btn.textContent = symbol;
+    btn.setAttribute("aria-label", "查看 " + symbol + " 行情");
+    const name = companyName(symbol);
+    if (name) btn.title = name;
+    td.append(btn);
+    return td;
   }
 
   function cell(text, className) {

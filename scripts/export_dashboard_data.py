@@ -1,51 +1,47 @@
 #!/usr/bin/env python3
-"""Copy the dashboard snapshot into the static site.
+"""Validate the dashboard snapshot and publish it to the static site.
 
-``reports/stats.json`` and ``reports/equity_curve.csv`` do not include
-holdings or factor ranks, so this script does not rebuild the snapshot from
-those reports. The full payload lives in ``dashboard/dash_data.json``. After
-that file is refreshed, run::
+``scripts/run_backtest.py`` writes the full payload (equity, stats, holdings,
+factor ranks, ticker names) to ``dashboard/dash_data.json`` and copies it to
+``web/data/dash_data.json``. This script checks that file, fills company name
+and exchange from ``data/raw/TICKERS.csv`` when those columns exist, and
+writes both paths again so a hand-edited snapshot still reaches GitHub Pages.
 
+``reports/equity_curve.csv`` has no holdings, so this script does not rebuild
+the snapshot from the equity curve. Refresh the numbers with::
+
+    python scripts/run_backtest.py
     python scripts/export_dashboard_data.py
-
-It validates the required keys and copies the file to
-``web/data/dash_data.json`` for GitHub Pages.
 """
 
 from __future__ import annotations
 
 import json
-import shutil
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SRC = ROOT / "dashboard" / "dash_data.json"
-DEST = ROOT / "web" / "data" / "dash_data.json"
+sys.path.insert(0, str(ROOT / "src"))
 
-REQUIRED = (
-    "meta",
-    "stats",
-    "equity",
-    "months",
-    "holdings",
-    "factor_ranks",
-    "tickers",
-    "calendar",
+from mf.dashboard_data import (  # noqa: E402
+    enrich_tickers,
+    validate_payload,
+    write_snapshots,
 )
+
+SRC = ROOT / "dashboard" / "dash_data.json"
+TICKERS = ROOT / "data" / "raw" / "TICKERS.csv"
 
 
 def main() -> None:
     if not SRC.is_file():
         raise SystemExit(f"missing snapshot: {SRC}")
     payload = json.loads(SRC.read_text(encoding="utf-8"))
-    missing = [key for key in REQUIRED if key not in payload]
-    if missing:
-        raise SystemExit(f"{SRC.name} missing keys: {', '.join(missing)}")
-    if not payload["equity"]:
-        raise SystemExit(f"{SRC.name} has an empty equity series")
-    DEST.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(SRC, DEST)
-    print(f"Copied {SRC.relative_to(ROOT)} -> {DEST.relative_to(ROOT)}")
+    validate_payload(payload)
+    enrich_tickers(payload, TICKERS)
+    written = write_snapshots(payload, ROOT)
+    for path in written:
+        print(f"Wrote {path.relative_to(ROOT)}")
 
 
 if __name__ == "__main__":

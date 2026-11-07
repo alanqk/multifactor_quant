@@ -1,0 +1,85 @@
+# Manual backtest. GitHub Pages is static, so the site cannot run Python.
+# This workflow reruns the sample backtest, refreshes the dashboard JSON,
+# commits those outputs to main, and deploys web/ to Pages.
+#
+# A push made with the default GITHUB_TOKEN does not start pages.yml, so this
+# workflow deploys Pages itself after the commit.
+name: Run backtest
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: run-backtest
+  cancel-in-progress: false
+
+jobs:
+  backtest:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: true
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install package
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e . -r requirements.txt
+
+      - name: Run backtest
+        run: python scripts/run_backtest.py
+
+      - name: Export dashboard JSON
+        run: python scripts/export_dashboard_data.py
+
+      - name: Commit dashboard outputs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Data and report outputs only. Do not stage secrets, .env, or raw credentials.
+          git add -- \
+            dashboard/dash_data.json \
+            web/data/dash_data.json \
+            reports/summary.md \
+            reports/stats.json \
+            reports/equity_curve.csv
+          if git diff --cached --quiet; then
+            echo "No dashboard outputs changed."
+          else
+            git commit -m "chore: refresh backtest reports and dashboard snapshot"
+            git push origin HEAD:main
+          fi
+
+      - name: Check site payload
+        run: |
+          test -f web/index.html
+          test -s web/data/dash_data.json
+          python -c 'import json; from pathlib import Path; d=json.loads(Path("web/data/dash_data.json").read_text(encoding="utf-8")); need=["meta","stats","equity","months","holdings","factor_ranks","tickers","calendar"]; miss=[k for k in need if k not in d]; assert not miss, miss; assert d["equity"], "empty equity"'
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: web
+
+      - name: Deploy GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5

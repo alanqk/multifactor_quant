@@ -28,7 +28,10 @@
           <h1>多因子回测看板</h1>
         </div>
       </div>
-      <p class="asof" id="asof"></p>
+      <div class="top-side">
+        <p class="asof" id="asof"></p>
+        <button type="button" class="btn btn-primary" id="run-backtest">执行回测</button>
+      </div>
     </header>
 
     <p id="status" class="status" role="status">正在读取回测数据…</p>
@@ -66,7 +69,7 @@
           </label>
         </div>
         <div class="month-stats" id="month-stats"></div>
-        <h3 class="subhead">近期月收益</h3>
+        <h3 class="subhead">月收益</h3>
         <p class="hint">点击柱形可切换调仓日。数值为月收益率（%）。</p>
         <div class="chart-box chart-box-sm">
           <canvas id="month-chart" aria-label="近期策略与基准月收益"></canvas>
@@ -82,6 +85,7 @@
             <h2 id="hold-heading">当月持仓</h2>
             <p class="hint" id="hold-count"></p>
           </div>
+          <p class="hint">点击代码打开行情：公司、回测快照与 TradingView 图表。</p>
           <div class="table-scroll">
             <table id="holdings">
               <thead>
@@ -96,14 +100,13 @@
               <tbody></tbody>
             </table>
           </div>
-          <h3 class="subhead">个股</h3>
-          <dl class="detail" id="detail"></dl>
         </section>
 
         <section class="card" aria-labelledby="rank-heading">
           <div class="card-head">
             <h2 id="rank-heading">因子股票池排序</h2>
           </div>
+          <p class="hint">点击代码打开同一行情面板。</p>
           <div class="tabs" id="factor-tabs" role="tablist" aria-label="因子"></div>
           <div class="table-scroll table-tall">
             <table id="ranks">
@@ -123,9 +126,65 @@
       </div>
     </main>
 
+    <div id="stock-dialog" class="modal" hidden>
+      <div class="modal-backdrop" data-close="stock"></div>
+      <div
+        class="modal-panel modal-panel-wide"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="stock-title"
+      >
+        <div class="modal-head">
+          <div>
+            <p class="kicker" id="stock-kicker">个股行情</p>
+            <h2 id="stock-title">—</h2>
+            <p class="stock-sub" id="stock-sub"></p>
+          </div>
+          <button type="button" class="btn" id="stock-close" data-close="stock">关闭</button>
+        </div>
+        <dl class="detail" id="detail"></dl>
+        <div id="tv-chart" class="tv-chart"></div>
+        <p class="hint" id="tv-status">
+          图表由 TradingView 提供。上方价格与因子为回测快照，与图中实时行情不是同一时点。
+        </p>
+      </div>
+    </div>
+
+    <div id="backtest-dialog" class="modal" hidden>
+      <div class="modal-backdrop" data-close="backtest"></div>
+      <div
+        class="modal-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="backtest-title"
+      >
+        <div class="modal-head">
+          <h2 id="backtest-title">执行回测</h2>
+          <button type="button" class="btn" id="backtest-close" data-close="backtest">关闭</button>
+        </div>
+        <p>
+          回测在 GitHub Actions 中运行；完成后站点数据会自动更新。本页是静态文件，浏览器不会在这里重跑 Python。
+        </p>
+        <p class="hint">请在打开的页面选择分支 <code>main</code>，再点 Run workflow。完成后刷新本页。</p>
+        <div class="modal-actions">
+          <a
+            class="btn btn-primary"
+            id="backtest-link"
+            href="https://github.com/alanqk/multifactor_quant/actions/workflows/run-backtest.yml"
+            target="_blank"
+            rel="noopener noreferrer"
+            >在 Actions 中运行</a
+          >
+        </div>
+        <h3 class="subhead">本地运行</h3>
+        <pre class="cmd"><code>python scripts/run_backtest.py
+python scripts/export_dashboard_data.py</code></pre>
+      </div>
+    </div>
+
     <footer class="foot">
       <p>
-        研究回测展示，不是投资建议，也不会在浏览器里重跑 Python。数据文件
+        研究回测展示，不是投资建议。浏览器不会重跑 Python；页眉「执行回测」会打开 GitHub Actions，跑完后刷新本页即可看到新快照。数据文件
         <code>data/dash_data.json</code>
         与仓库 <code>dashboard/dash_data.json</code> 为同一份快照。
       </p>
