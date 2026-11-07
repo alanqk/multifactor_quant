@@ -8,6 +8,7 @@ __pycache__/
 .DS_Store
 data/raw/*
 !data/raw/.gitkeep
+!data/raw/*.csv
 data/processed/*
 !data/processed/.gitkeep
 reports/equity_curve.png
