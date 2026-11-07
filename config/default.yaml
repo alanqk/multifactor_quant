@@ -1,0 +1,87 @@
+# Multifactor research defaults — DJIA sample friendly, production-shaped
+
+data:
+  raw_dir: data/raw
+  processed_dir: data/processed
+  api_base: https://api.sharadar.com/v1.0/data
+  api_key: test-api-key   # free tier: DJIA 30 only
+  # Current DJIA constituents as listed on sharadar.com/sample
+  sample_tickers:
+    - AAPL
+    - AMGN
+    - AMZN
+    - AXP
+    - BA
+    - CAT
+    - CRM
+    - CSCO
+    - CVX
+    - DIS
+    - GOOGL
+    - GS
+    - HD
+    - HON
+    - IBM
+    - JNJ
+    - JPM
+    - KO
+    - MCD
+    - MMM
+    - MRK
+    - MSFT
+    - NKE
+    - NVDA
+    - PG
+    - SHW
+    - TRV
+    - UNH
+    - V
+    - WMT
+  price_from: "2018-01-01"   # free key typically returns ~5y; earlier is truncated
+  fund_dimensions: ["ART", "ARQ"]  # as-reported TTM + quarterly for PIT
+
+universe:
+  min_price: 5.0
+  min_adv_usd: 1_000_000      # 20d dollar volume
+  min_history_days: 252
+  exclude_zombies: true
+  zombie_zero_ret_frac: 0.50  # 250d zero-return share
+
+factors:
+  momentum:
+    lookback_days: 252
+    skip_days: 21             # classic 12-1
+  low_vol:
+    lookback_days: 250
+    industry_neutral: true    # skipped gracefully if no sector
+  value:
+    metrics: ["ep", "bp", "sp", "ebitda_ev"]
+  quality:
+    min_years_for_cagr: 3     # sample is ~5y; use 3y+ when 5y unavailable
+    target_cagr_years: 5
+  combine:
+    method: equal_rank        # equal-weight of CS percentile ranks
+    weights:
+      momentum: 0.25
+      low_vol: 0.25
+      value: 0.25
+      quality: 0.25
+
+portfolio:
+  rebalance: M                # month-end
+  long_pct: 0.30              # long top 30% by combined score
+  weighting: equal            # equal | score
+  max_name_weight: 0.10
+  max_sector_weight: 0.35
+  min_names: 5
+
+risk:
+  cost_bps_one_way: 10        # commission + spread proxy
+  vol_target: null            # e.g. 0.10 to enable; null = off (DJIA sample too concentrated)
+  drawdown_halt: -0.20        # flatten if peak-to-trough <= -20%
+  beta_neutral: false
+
+backtest:
+  initial_capital: 1_000_000
+  benchmark_equal_weight: true
+  reports_dir: reports
