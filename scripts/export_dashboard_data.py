@@ -23,8 +23,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
+import yaml  # noqa: E402
+
 from mf.dashboard_data import (  # noqa: E402
     enrich_tickers,
+    ensure_risk,
     validate_payload,
     write_snapshots,
 )
@@ -37,6 +40,13 @@ def main() -> None:
     if not SRC.is_file():
         raise SystemExit(f"missing snapshot: {SRC}")
     payload = json.loads(SRC.read_text(encoding="utf-8"))
+    cfg = yaml.safe_load((ROOT / "config" / "default.yaml").read_text(encoding="utf-8"))
+    ensure_risk(
+        payload,
+        ROOT / "reports" / "equity_curve.csv",
+        max_name_weight=cfg["portfolio"]["max_name_weight"],
+        drawdown_halt=cfg["risk"].get("drawdown_halt"),
+    )
     validate_payload(payload)
     enrich_tickers(payload, TICKERS)
     written = write_snapshots(payload, ROOT)

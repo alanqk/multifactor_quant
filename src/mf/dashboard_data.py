@@ -24,6 +24,8 @@ REQUIRED = (
     "factor_ranks",
     "tickers",
     "calendar",
+    "risk",
+    "drawdown",
 )
 
 FACTOR_KEYS = ("momentum", "low_vol", "value", "quality")
@@ -104,6 +106,148 @@ def enrich_tickers(payload: dict, tickers_csv: Path) -> dict:
     return payload
 
 
+def _trade_stats(values: list[float]) -> dict:
+    """Win rate, profit factor, and payoff from a list of period returns."""
+    clean = [float(value) for value in values if value is not None]
+    wins = [value for value in clean if value > 0]
+    losses = [value for value in clean if value < 0]
+    win_rate = round(len(wins) / len(clean), 4) if clean else None
+    gross_loss = abs(sum(losses))
+    profit_factor = round(sum(wins) / gross_loss, 3) if gross_loss > 0 else None
+    payoff = None
+    if wins and losses:
+        payoff = round((sum(wins) / len(wins)) / (abs(sum(losses)) / len(losses)), 3)
+    return {
+        "n": len(clean),
+        "win_rate": win_rate,
+        "profit_factor": profit_factor,
+        "payoff_ratio": payoff,
+    }
+
+
+def portfolio_risk(
+    equity: pd.Series,
+    returns: pd.Series | None,
+    turnover: pd.Series | None,
+    monthly_returns: list[float],
+    stats: dict | None = None,
+    max_name_weight: float | None = None,
+    drawdown_halt: float | None = None,
+) -> tuple[dict, list[dict]]:
+    """Risk block and month-end drawdown from the backtest equity curve.
+
+    Drawdown uses the daily running peak, then keeps the last session of each
+    month so the chart lines up with the monthly equity series. Headline
+    ratios already stored on ``stats`` are reused so the page does not show
+    two different roundings of the same number.
+    """
+    stats = stats or {}
+    eq = pd.to_numeric(equity, errors="coerce").dropna().astype(float).sort_index()
+    if eq.empty:
+        raise ValueError("equity series is empty")
+    peak = eq.cummax()
+    drawdown = eq / peak - 1.0
+    max_dt = drawdown.idxmin()
+    max_dd = float(drawdown.loc[max_dt])
+    current = float(drawdown.iloc[-1])
+    final_peak = float(peak.iloc[-1])
+    at_peak = eq[eq >= final_peak - 1e-8]
+    peak_dt = at_peak.index[-1]
+
+    rets = pd.to_numeric(returns, errors="coerce").dropna().astype(float) if returns is not None else None
+    if rets is None or rets.empty:
+        rets = eq.pct_change().dropna()
+    ann = 252.0
+    mu = float(rets.mean() * ann) if len(rets) else float("nan")
+    vol = float(rets.std() * (ann ** 0.5)) if len(rets) else float("nan")
+    downside = float(rets.clip(upper=0).std() * (ann ** 0.5)) if len(rets) else float("nan")
+    sharpe = mu / vol if vol == vol and vol > 0 else float("nan")
+    sortino = mu / downside if downside == downside and downside > 0 else float("nan")
+    calmar = mu / abs(max_dd) if max_dd < 0 else float("nan")
+    daily_win = float((rets > 0).mean()) if len(rets) else float("nan")
+
+    months = _trade_stats(monthly_returns)
+    avg_to = None
+    if turnover is not None:
+        turned = pd.to_numeric(turnover, errors="coerce").dropna()
+        if len(turned):
+            positive = turned[turned > 0]
+            avg_to = float(positive.mean()) if len(positive) else 0.0
+
+    def prefer(key: str, computed: float, digits: int):
+        if stats.get(key) is not None:
+            return stats[key]
+        return _num(computed, digits)
+
+    halt_hit = None
+    if drawdown_halt is not None and drawdown_halt == drawdown_halt:
+        halt_hit = bool(max_dd <= float(drawdown_halt) + 1e-12)
+
+    risk = {
+        "max_drawdown": prefer("max_drawdown", max_dd, 4),
+        "max_drawdown_date": _date_str(pd.Timestamp(max_dt)),
+        "current_drawdown": _num(current, 4),
+        "peak_date": _date_str(pd.Timestamp(peak_dt)),
+        "ann_vol": prefer("ann_vol", vol, 4),
+        "downside_vol": _num(downside, 4),
+        "sharpe": prefer("sharpe", sharpe, 3),
+        "sortino": prefer("sortino", sortino, 3),
+        "calmar": prefer("calmar", calmar, 3),
+        "daily_win_rate": prefer("hit_rate", daily_win, 3),
+        "monthly_win_rate": months["win_rate"],
+        "profit_factor": months["profit_factor"],
+        "payoff_ratio": months["payoff_ratio"],
+        "avg_turnover_one_way": prefer("avg_turnover_one_way", avg_to if avg_to is not None else float("nan"), 3),
+        "max_name_weight": None if max_name_weight is None else float(max_name_weight),
+        "drawdown_halt": None if drawdown_halt is None else float(drawdown_halt),
+        "drawdown_halt_hit": halt_hit,
+        "monthly_n": months["n"],
+        "rf": 0,
+    }
+    sampled = drawdown.groupby(drawdown.index.to_period("M")).tail(1)
+    series = []
+    for dt, value in sampled.items():
+        if isinstance(value, pd.Series):
+            value = value.iloc[-1]
+        series.append(
+            {
+                "label": pd.Timestamp(dt).strftime("%Y-%m"),
+                "drawdown": _num(float(value), 4),
+            }
+        )
+    return risk, series
+
+
+def ensure_risk(
+    payload: dict,
+    equity_csv: Path,
+    *,
+    max_name_weight: float | None = None,
+    drawdown_halt: float | None = None,
+) -> dict:
+    """Fill ``risk`` and ``drawdown`` from the equity curve when missing."""
+    if payload.get("risk") and payload.get("drawdown"):
+        return payload
+    if not equity_csv.is_file():
+        return payload
+    frame = pd.read_csv(equity_csv, parse_dates=["date"]).set_index("date").sort_index()
+    monthly = [row.get("month_return") for row in payload.get("months") or []]
+    if monthly:
+        monthly = monthly[:-1]
+    risk, series = portfolio_risk(
+        frame["strategy"],
+        frame["strategy_ret"] if "strategy_ret" in frame.columns else None,
+        None,
+        monthly,
+        payload.get("stats"),
+        max_name_weight if max_name_weight is not None else (payload.get("risk") or {}).get("max_name_weight"),
+        drawdown_halt if drawdown_halt is not None else (payload.get("risk") or {}).get("drawdown_halt"),
+    )
+    payload["risk"] = risk
+    payload["drawdown"] = series
+    return payload
+
+
 def build_dashboard_payload(
     *,
     result,
@@ -116,6 +260,8 @@ def build_dashboard_payload(
     rebalance: str,
     long_pct: float,
     weighting: str,
+    max_name_weight: float | None = None,
+    drawdown_halt: float | None = None,
 ) -> dict:
     """Full Pages snapshot: equity, stats, holdings, factor ranks, tickers."""
     names, exchanges, sectors = _reference_maps(tickers, sector)
@@ -197,6 +343,18 @@ def build_dashboard_payload(
         "tickers": _ticker_objects(prices, names, exchanges, sectors),
         "calendar": calendar,
     }
+    monthly_returns = [row["month_return"] for row in month_rows[:-1]]
+    risk, drawdown = portfolio_risk(
+        result.equity,
+        result.returns,
+        result.turnover,
+        monthly_returns,
+        stats,
+        max_name_weight,
+        drawdown_halt,
+    )
+    payload["risk"] = risk
+    payload["drawdown"] = drawdown
     return _plain(payload)
 
 

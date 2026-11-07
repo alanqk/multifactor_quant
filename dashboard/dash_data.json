@@ -58158,5 +58158,272 @@
       "date": "2026-11-06",
       "value": 0.0
     }
+  ],
+  "risk": {
+    "max_drawdown": -0.1948,
+    "max_drawdown_date": "2025-04-08",
+    "current_drawdown": -0.0333,
+    "peak_date": "2026-10-27",
+    "ann_vol": 0.1242,
+    "downside_vol": 0.0778,
+    "sharpe": 0.78,
+    "sortino": 1.244,
+    "calmar": 0.497,
+    "daily_win_rate": 0.433,
+    "monthly_win_rate": 0.6667,
+    "profit_factor": 2.009,
+    "payoff_ratio": 1.005,
+    "avg_turnover_one_way": 0.224,
+    "max_name_weight": 0.1,
+    "drawdown_halt": -0.2,
+    "drawdown_halt_hit": false,
+    "monthly_n": 48,
+    "rf": 0
+  },
+  "drawdown": [
+    {
+      "label": "2021-11",
+      "drawdown": 0.0
+    },
+    {
+      "label": "2021-12",
+      "drawdown": 0.0
+    },
+    {
+      "label": "2022-01",
+      "drawdown": 0.0
+    },
+    {
+      "label": "2022-02",
+      "drawdown": 0.0
+    },
+    {
+      "label": "2022-03",
+      "drawdown": 0.0
+    },
+    {
+      "label": "2022-04",
+      "drawdown": 0.0
+    },
+    {
+      "label": "2022-05",
+      "drawdown": 0.0
+    },
+    {
+      "label": "2022-06",
+      "drawdown": 0.0
+    },
+    {
+      "label": "2022-07",
+      "drawdown": 0.0
+    },
+    {
+      "label": "2022-08",
+      "drawdown": 0.0
+    },
+    {
+      "label": "2022-09",
+      "drawdown": 0.0
+    },
+    {
+      "label": "2022-10",
+      "drawdown": 0.0
+    },
+    {
+      "label": "2022-11",
+      "drawdown": -0.0005
+    },
+    {
+      "label": "2022-12",
+      "drawdown": -0.0354
+    },
+    {
+      "label": "2023-01",
+      "drawdown": -0.0421
+    },
+    {
+      "label": "2023-02",
+      "drawdown": -0.0875
+    },
+    {
+      "label": "2023-03",
+      "drawdown": -0.0857
+    },
+    {
+      "label": "2023-04",
+      "drawdown": -0.0629
+    },
+    {
+      "label": "2023-05",
+      "drawdown": -0.099
+    },
+    {
+      "label": "2023-06",
+      "drawdown": -0.0423
+    },
+    {
+      "label": "2023-07",
+      "drawdown": -0.0304
+    },
+    {
+      "label": "2023-08",
+      "drawdown": -0.0236
+    },
+    {
+      "label": "2023-09",
+      "drawdown": -0.0643
+    },
+    {
+      "label": "2023-10",
+      "drawdown": -0.099
+    },
+    {
+      "label": "2023-11",
+      "drawdown": -0.0575
+    },
+    {
+      "label": "2023-12",
+      "drawdown": -0.0255
+    },
+    {
+      "label": "2024-01",
+      "drawdown": -0.0241
+    },
+    {
+      "label": "2024-02",
+      "drawdown": 0.0
+    },
+    {
+      "label": "2024-03",
+      "drawdown": -0.0092
+    },
+    {
+      "label": "2024-04",
+      "drawdown": -0.0736
+    },
+    {
+      "label": "2024-05",
+      "drawdown": -0.0473
+    },
+    {
+      "label": "2024-06",
+      "drawdown": -0.0437
+    },
+    {
+      "label": "2024-07",
+      "drawdown": -0.0184
+    },
+    {
+      "label": "2024-08",
+      "drawdown": 0.0
+    },
+    {
+      "label": "2024-09",
+      "drawdown": 0.0
+    },
+    {
+      "label": "2024-10",
+      "drawdown": -0.0471
+    },
+    {
+      "label": "2024-11",
+      "drawdown": -0.0013
+    },
+    {
+      "label": "2024-12",
+      "drawdown": -0.0215
+    },
+    {
+      "label": "2025-01",
+      "drawdown": -0.0079
+    },
+    {
+      "label": "2025-02",
+      "drawdown": -0.0265
+    },
+    {
+      "label": "2025-03",
+      "drawdown": -0.0742
+    },
+    {
+      "label": "2025-04",
+      "drawdown": -0.1005
+    },
+    {
+      "label": "2025-05",
+      "drawdown": -0.0706
+    },
+    {
+      "label": "2025-06",
+      "drawdown": -0.0516
+    },
+    {
+      "label": "2025-07",
+      "drawdown": -0.0538
+    },
+    {
+      "label": "2025-08",
+      "drawdown": -0.0439
+    },
+    {
+      "label": "2025-09",
+      "drawdown": -0.0261
+    },
+    {
+      "label": "2025-10",
+      "drawdown": -0.0048
+    },
+    {
+      "label": "2025-11",
+      "drawdown": 0.0
+    },
+    {
+      "label": "2025-12",
+      "drawdown": -0.0115
+    },
+    {
+      "label": "2026-01",
+      "drawdown": 0.0
+    },
+    {
+      "label": "2026-02",
+      "drawdown": -0.0247
+    },
+    {
+      "label": "2026-03",
+      "drawdown": -0.0709
+    },
+    {
+      "label": "2026-04",
+      "drawdown": -0.0173
+    },
+    {
+      "label": "2026-05",
+      "drawdown": -0.021
+    },
+    {
+      "label": "2026-06",
+      "drawdown": -0.0007
+    },
+    {
+      "label": "2026-07",
+      "drawdown": -0.0191
+    },
+    {
+      "label": "2026-08",
+      "drawdown": -0.0193
+    },
+    {
+      "label": "2026-09",
+      "drawdown": -0.0244
+    },
+    {
+      "label": "2026-10",
+      "drawdown": -0.0204
+    },
+    {
+      "label": "2026-11",
+      "drawdown": -0.0333
+    }
   ]
 }

@@ -295,6 +295,8 @@ select {
   margin: 4px 0 8px;
 }
 
+#concentration { grid-template-columns: repeat(4, 1fr); }
+
 .month-stats div {
   padding: 8px 10px;
   border-radius: 10px;
@@ -604,7 +606,8 @@ a:focus-visible {
 @media (max-width: 640px) {
   .metrics,
   .split,
-  .detail { grid-template-columns: 1fr; }
+  .detail,
+  #concentration { grid-template-columns: 1fr 1fr; }
   .chart-box-lg { height: 260px; }
   .tv-chart { height: 420px; }
 }
