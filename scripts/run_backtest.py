@@ -211,6 +211,8 @@ def main() -> None:
         rebalance=pcfg["rebalance"],
         long_pct=pcfg["long_pct"],
         weighting=pcfg["weighting"],
+        max_name_weight=pcfg["max_name_weight"],
+        drawdown_halt=rcfg.get("drawdown_halt"),
     )
     written = write_snapshots(payload, ROOT)
     for path in written:

@@ -60,6 +60,28 @@
         </div>
       </section>
 
+      <section class="card" aria-labelledby="risk-heading">
+        <div class="card-head">
+          <h2 id="risk-heading">组合风险</h2>
+        </div>
+        <p class="hint" id="risk-hint">
+          由同一份样本回测的日收益和净值计算，无风险利率按 0。不是另一套策略。
+        </p>
+        <div class="metrics" id="risk-metrics"></div>
+        <dl class="props" id="risk-props"></dl>
+        <h3 class="subhead">回撤曲线</h3>
+        <p class="hint">
+          纵轴为相对历史峰值的回撤（%）。峰值按日净值滚动计算，曲线取每月最后一个交易日。
+        </p>
+        <div class="chart-box chart-box-sm">
+          <canvas id="drawdown-chart" aria-label="策略相对峰值的回撤曲线"></canvas>
+        </div>
+        <h3 class="subhead">持仓集中度</h3>
+        <p class="hint" id="conc-hint">随上方调仓日变化。</p>
+        <div class="month-stats" id="concentration"></div>
+        <p class="hint warn" id="conc-flag" hidden></p>
+      </section>
+
       <section class="card" aria-labelledby="month-heading">
         <div class="card-head">
           <h2 id="month-heading">月末持仓与当月指标</h2>

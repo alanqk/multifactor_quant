@@ -25,6 +25,7 @@
 
   let equityChart = null;
   let monthChart = null;
+  let drawdownChart = null;
   let chartToken = 0;
   let tvWidget = null;
   let tvLoader = null;
@@ -77,6 +78,7 @@
 
     renderIntro();
     renderMetrics();
+    renderRisk();
     renderMonthSelect();
     renderFactorTabs();
     renderMonth();
@@ -240,6 +242,7 @@
     renderHeatmap();
     renderHoldings();
     renderRanks();
+    renderConcentration();
     if (stockIsOpen()) renderStockFacts();
   }
 
@@ -602,6 +605,7 @@
     Chart.defaults.color = "#5e574c";
     Chart.defaults.borderColor = "rgba(28, 25, 21, 0.08)";
     renderEquityChart();
+    renderDrawdownChart();
     renderMonthChart();
   }
 
@@ -811,7 +815,183 @@
       holdings: mapRows(raw.holdings, asHold),
       factor_ranks: mapFactors(raw.factor_ranks),
       tickers: raw.tickers || {},
+      risk: raw.risk || null,
+      drawdown: (raw.drawdown || []).map(asDrawdown),
     };
+  }
+
+  function asDrawdown(row) {
+    if (Array.isArray(row)) return { label: row[0], drawdown: row[1] };
+    return { label: row.label, drawdown: row.drawdown };
+  }
+
+  function renderRisk() {
+    const risk = DATA.risk;
+    const metrics = $("#risk-metrics");
+    const props = $("#risk-props");
+    metrics.replaceChildren();
+    props.replaceChildren();
+    if (!risk) {
+      const empty = document.createElement("p");
+      empty.className = "hint";
+      empty.textContent = "这份快照没有 risk 字段。请重新导出 dashboard 数据。";
+      metrics.append(empty);
+      return;
+    }
+    const cards = [
+      ["最大回撤", pct(risk.max_drawdown), tone(risk.max_drawdown)],
+      ["当前回撤", pct(risk.current_drawdown), tone(risk.current_drawdown)],
+      ["年化波动", pct(risk.ann_vol), ""],
+      ["Sharpe", num(risk.sharpe, 2), ""],
+    ];
+    for (const [label, value, klass] of cards) {
+      const card = document.createElement("article");
+      card.className = "metric" + (klass ? " " + klass : "");
+      const span = document.createElement("span");
+      span.textContent = label;
+      const strong = document.createElement("strong");
+      strong.textContent = value;
+      card.append(span, strong);
+      metrics.append(card);
+    }
+    const rows = [
+      ["下行波动", pct(risk.downside_vol)],
+      ["Sortino", num(risk.sortino, 3)],
+      ["Calmar", num(risk.calmar, 3)],
+      ["日胜率", pct(risk.daily_win_rate)],
+      ["月胜率", pct(risk.monthly_win_rate)],
+      ["盈亏比", num(risk.profit_factor, 3)],
+      ["赔率", num(risk.payoff_ratio, 3)],
+      ["平均换手(单边)", pct(risk.avg_turnover_one_way)],
+      ["回撤低点", risk.max_drawdown_date || "—"],
+      ["峰值日期", risk.peak_date || "—"],
+      ["回撤熔断", risk.drawdown_halt == null ? "—" : pct(risk.drawdown_halt)],
+      ["熔断", risk.drawdown_halt_hit == null ? "—" : risk.drawdown_halt_hit ? "曾触及" : "未触及"],
+    ];
+    for (const [label, value] of rows) {
+      const wrap = document.createElement("div");
+      const dt = document.createElement("dt");
+      dt.textContent = label;
+      const dd = document.createElement("dd");
+      dd.textContent = value;
+      if (label === "熔断" && risk.drawdown_halt_hit) dd.className = "neg";
+      wrap.append(dt, dd);
+      props.append(wrap);
+    }
+    const hint = $("#risk-hint");
+    const n = risk.monthly_n == null ? "" : "月度样本 " + risk.monthly_n + " 期（不含最后一期没有下一调仓日的占位）。";
+    hint.textContent =
+      "由同一份样本回测的日收益和净值计算，无风险利率按 0。日胜率与上方命中率相同。盈亏比 = 盈利月合计 / 亏损月绝对值合计；赔率 = 平均盈利月 / 平均亏损月绝对值。" +
+      n;
+  }
+
+  function renderConcentration() {
+    const host = $("#concentration");
+    const flag = $("#conc-flag");
+    const hint = $("#conc-hint");
+    if (!host) return;
+    const holds = DATA.holdings[month] || [];
+    const weights = holds
+      .map((row) => Number(row.w))
+      .filter((value) => !Number.isNaN(value))
+      .sort((a, b) => b - a);
+    const sum = (count) => weights.slice(0, count).reduce((total, value) => total + value, 0);
+    const maxWeight = weights.length ? weights[0] : null;
+    const cap = DATA.risk && DATA.risk.max_name_weight != null ? Number(DATA.risk.max_name_weight) : null;
+    hint.textContent = "调仓日 " + (month || "—") + " · " + weights.length + " 只。前 5 / 前 10 为权重从高到低的合计占比。";
+    const items = [
+      ["前 5 权重", weights.length ? pct(sum(5)) : "—"],
+      ["前 10 权重", weights.length ? pct(sum(10)) : "—"],
+      ["最大单票", maxWeight == null ? "—" : pct(maxWeight)],
+      ["单票上限", cap == null ? "未配置" : pct(cap)],
+    ];
+    host.replaceChildren();
+    for (const [label, value] of items) {
+      const cell = document.createElement("div");
+      const span = document.createElement("span");
+      span.textContent = label;
+      const strong = document.createElement("strong");
+      strong.textContent = value;
+      cell.append(span, strong);
+      host.append(cell);
+    }
+    if (!flag) return;
+    if (cap == null || maxWeight == null) {
+      flag.hidden = true;
+      return;
+    }
+    flag.hidden = false;
+    const breached = maxWeight > cap + 0.0005;
+    flag.className = breached ? "hint warn" : "hint";
+    if (breached) {
+      const tooFew = weights.length * cap < 1 - 1e-9;
+      flag.textContent = tooFew
+        ? "最大单票 " + pct(maxWeight) + " 超过上限 " + pct(cap) + "。等权且 1/持仓数大于上限时，截断后再归一仍会越限。"
+        : "最大单票 " + pct(maxWeight) + " 超过上限 " + pct(cap) + "。";
+    } else {
+      flag.textContent = "最大单票未超过上限 " + pct(cap) + "。";
+    }
+  }
+
+  function renderDrawdownChart() {
+    const canvas = $("#drawdown-chart");
+    if (!canvas || typeof Chart === "undefined") return;
+    const rows = DATA.drawdown || [];
+    if (!rows.length) return;
+    if (drawdownChart) drawdownChart.destroy();
+    const halt = DATA.risk && DATA.risk.drawdown_halt != null ? DATA.risk.drawdown_halt * 100 : null;
+    const labels = rows.map((row) => row.label);
+    const datasets = [
+      {
+        label: "回撤",
+        data: rows.map((row) => (row.drawdown == null ? null : row.drawdown * 100)),
+        borderColor: "#9c3b2e",
+        backgroundColor: "rgba(156, 59, 46, 0.12)",
+        fill: true,
+        pointRadius: 0,
+        pointHitRadius: 8,
+        borderWidth: 2,
+        tension: 0.15,
+      },
+    ];
+    if (halt != null) {
+      datasets.push({
+        label: "熔断线",
+        data: labels.map(() => halt),
+        borderColor: "#8a5a2a",
+        pointRadius: 0,
+        borderWidth: 1.5,
+        borderDash: [4, 4],
+        fill: false,
+      });
+    }
+    drawdownChart = new Chart(canvas, {
+      type: "line",
+      data: { labels, datasets },
+      options: chartOptions({
+        plugins: {
+          legend: { position: "bottom", labels: { boxWidth: 18 } },
+          tooltip: {
+            callbacks: {
+              label(ctx) {
+                return ctx.dataset.label + "  " + signedPoints(ctx.parsed.y);
+              },
+            },
+          },
+        },
+        scales: {
+          x: { ticks: { maxTicksLimit: 8, maxRotation: 0 }, grid: { display: false } },
+          y: {
+            suggestedMax: 0,
+            ticks: {
+              callback(value) {
+                return value + "%";
+              },
+            },
+          },
+        },
+      }),
+    });
   }
 
   function mapRows(table, cast) {

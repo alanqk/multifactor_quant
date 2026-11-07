@@ -112,6 +112,8 @@ python -m http.server -d web 8080
 
 持仓表和因子排序里点击代码，会打开个股面板：公司名（`dash_data.json` 的 `tickers`）、该调仓日的价格 / 权重 / 因子排名，以及 TradingView 行情图。切换代码会拆掉旧图表再创建，避免残留多个 iframe。
 
+净值曲线下面有「组合风险」：最大回撤与当前回撤、年化波动和下行波动、Sharpe / Sortino / Calmar、日胜率与月胜率、盈亏比、赔率、平均换手，以及随调仓日变化的前 5 / 前 10 权重。单票超过 `max_name_weight` 时会标出。回撤曲线用日净值的滚动峰值，图上取月末。这些数字来自同一次样本回测，写在 `dash_data.json` 的 `risk` 和 `drawdown` 里。
+
 ## 在网页上执行回测
 
 Pages 上的看板是静态页，浏览器不能跑 Python。页眉 **执行回测** 会说明这一点，并在新标签页打开工作流 [Run backtest](https://github.com/alanqk/multifactor_quant/actions/workflows/run-backtest.yml)（`.github/workflows/run-backtest.yml`）。在该页选择分支 `main`，再点 **Run workflow**。
