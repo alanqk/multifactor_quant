@@ -18,6 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from mf.backtest.engine import run_backtest  # noqa: E402
+from mf.dashboard_data import build_dashboard_payload, write_snapshots  # noqa: E402
 from mf.data.loader import load_sharadar  # noqa: E402
 from mf.factors.combine import combine_factors  # noqa: E402
 from mf.factors.low_vol import low_vol_factor  # noqa: E402
@@ -191,6 +192,29 @@ def main() -> None:
         lines.append(f"- {c}")
     lines.append("")
     (reports / "summary.md").write_text("\n".join(lines))
+
+    px_col = "close" if "close" in md.prices.columns else None
+    if px_col:
+        display_px = md.prices.pivot(index="date", columns="ticker", values=px_col).sort_index()
+    else:
+        display_px = md.close
+    n_names = int(md.close.shape[1])
+    universe = "Sharadar DJIA-30 sample" if n_names <= 30 else f"Sharadar sample ({n_names} names)"
+    payload = build_dashboard_payload(
+        result=result,
+        factors=factors,
+        score=score,
+        prices=display_px,
+        tickers=md.tickers,
+        sector=md.sector,
+        universe=universe,
+        rebalance=pcfg["rebalance"],
+        long_pct=pcfg["long_pct"],
+        weighting=pcfg["weighting"],
+    )
+    written = write_snapshots(payload, ROOT)
+    for path in written:
+        print(f"Wrote {path.relative_to(ROOT)}")
 
     print(json.dumps(result.stats, indent=2))
     print(f"Wrote {reports / 'summary.md'}")

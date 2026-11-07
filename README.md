@@ -39,6 +39,7 @@ multifactor_quant/
   reports/
   web/                         # GitHub Pages 静态看板（index.html）
   .github/workflows/pages.yml
+  .github/workflows/run-backtest.yml
 ```
 
 ## 因子定义
@@ -109,12 +110,26 @@ python -m http.server -d web 8080
 
 浏览器访问 http://127.0.0.1:8080/ 。直接用 `file://` 打开时，浏览器会拦截对 JSON 的读取。
 
-更新看板数字：`reports/` 只有摘要和日频净值，没有持仓和因子排序，不能单独重建整份 JSON。刷新 `dashboard/dash_data.json` 之后运行：
+持仓表和因子排序里点击代码，会打开个股面板：公司名（`dash_data.json` 的 `tickers`）、该调仓日的价格 / 权重 / 因子排名，以及 TradingView 行情图。切换代码会拆掉旧图表再创建，避免残留多个 iframe。
+
+## 在网页上执行回测
+
+Pages 上的看板是静态页，浏览器不能跑 Python。页眉 **执行回测** 会说明这一点，并在新标签页打开工作流 [Run backtest](https://github.com/alanqk/multifactor_quant/actions/workflows/run-backtest.yml)（`.github/workflows/run-backtest.yml`）。在该页选择分支 `main`，再点 **Run workflow**。
+
+工作流会：
+
+1. 安装本包，用仓库里的 `data/raw/` CSV 运行 `python scripts/run_backtest.py`
+2. 用回测结果重写完整快照（净值、绩效、持仓、因子排序、公司名与交易所），再运行 `python scripts/export_dashboard_data.py`，同时更新 `dashboard/dash_data.json` 和 `web/data/dash_data.json`
+3. 只把 `reports/summary.md`、`reports/stats.json`、`reports/equity_curve.csv` 和这两份 JSON 提交回 `main`（不提交密钥或 `.env`）
+4. 把 `web/` 部署到 GitHub Pages。用默认 `GITHUB_TOKEN` 推送到 `main` 不会再次触发 `pages.yml`，所以工作流在提交之后直接部署
+
+本地同样两步：
 
 ```bash
+python scripts/run_backtest.py
 python scripts/export_dashboard_data.py
 ```
 
-脚本会校验字段并把快照复制到 `web/data/dash_data.json`。
+`run_backtest.py` 在写出 `reports/` 的同时生成完整 `dash_data.json`。`reports/equity_curve.csv` 本身没有持仓和因子排序，不能单独还原看板；导出脚本只做校验，并从 `TICKERS.csv` 补上公司名和交易所。跑完 Actions 后刷新网页即可。
 
 仓库：[alanqk/multifactor_quant](https://github.com/alanqk/multifactor_quant)
